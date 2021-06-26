@@ -30,12 +30,10 @@ or add the package to your `composer.json`
 ```json
 {
     "require": {
-        "peppeocchi/php-cron-scheduler": "4.*"
+        "macropage/php-cron-scheduler": "dev-master"
     }
 }
 ```
-
-Scheduler V4 requires php >= 7.3, please use the [v3 branch](https://github.com/peppeocchi/php-cron-scheduler/tree/v3.x) for php versions < 7.3 and > 7.1 or the [v2 branch](https://github.com/peppeocchi/php-cron-scheduler/tree/v2.x) for php versions < 7.1.
 
 ## How it works
 
