@@ -1,8 +1,12 @@
 <?php namespace GO;
 
+use Carbon\Carbon;
 use DateTime;
 use Exception;
 use InvalidArgumentException;
+use phpseclib3\Net\SSH2;
+use phpseclib3\Crypt\RSA;
+use phpseclib3\Crypt\PublicKeyLoader;
 
 class Job
 {
@@ -137,6 +141,50 @@ class Job
      * @var callable
      */
     private $whenOverlapping;
+
+    private $runVia;
+    private $ssh_host;
+    private $ssh_port;
+    private $ssh_user;
+    private $ssh_pwd;
+    private $ssh_private_key;
+    private $ssh_private_key_pwd;
+
+    public function setSSHhost(string $host)
+    {
+        $this->ssh_host = $host;
+    }
+
+    public function setSSHport(string $port)
+    {
+        $this->ssh_port = $port;
+    }
+
+    public function setSSHuser(string $user)
+    {
+        $this->ssh_user = $user;
+    }
+
+    public function setSSHpwd(string $pwd)
+    {
+        $this->ssh_pwd = $pwd;
+    }
+
+    public function setSSHkey(string $key)
+    {
+        $this->ssh_private_key = $key;
+    }
+
+    public function setSSHkeyPwd(string $key_pwd)
+    {
+        $this->ssh_private_key_pwd = $key_pwd;
+    }
+
+    public function setRunVia(string $runvia)
+    {
+        $this->runVia = $runvia;
+    }
+
 
     /**
      * @var string
@@ -289,7 +337,7 @@ class Job
         $compiled = $this->command;
 
         // If callable, return the function itself
-        if (is_callable($compiled)) {
+        if ($this->runVia==='ssh' || is_callable($compiled)) {
             return $compiled;
         }
 
@@ -377,7 +425,13 @@ class Job
 
         // If overlapping, don't run
         if ($this->isOverlapping()) {
-            return false;
+            return serialize(
+                [
+                    'job_id'            => $this->getId(),
+                    'is_overlapping'    => true,
+                    'state'             => false
+                ]
+            );
         }
 
         $compiled = $this->compile();
@@ -389,15 +443,45 @@ class Job
             call_user_func($this->before);
         }
 
-        if (is_callable($compiled)) {
-            $this->output = $this->exec($compiled);
-        } else {
-            exec($compiled, $this->output, $this->returnCode);
+        $start             = microtime(true);
+        $start_date        = Carbon::now();
+        $exception_message = '';
+        $exception_code    = 0;
+
+        try {
+            if ($this->runVia === 'ssh') {
+                $key = PublicKeyLoader::load(file_get_contents($this->ssh_private_key), $this->ssh_private_key_pwd);
+                $ssh = new SSH2($this->ssh_host, $this->ssh_port);
+                $ssh->login($this->ssh_user, $key);
+                $ssh->setTimeout(1800);
+                $this->output = $ssh->exec($compiled);
+                $this->removeLockFile();
+            } elseif (is_callable($compiled)) {
+                $this->output = $this->exec($compiled);
+            } else {
+                exec($compiled, $this->output, $this->returnCode);
+            }
+        } catch (\RuntimeException $e) {
+            $exception_message = $e->getMessage();
+            $exception_code    = $e->getCode();
         }
+
+        $duration = microtime(true) - $start;
+        $end_date = Carbon::now();
 
         $this->finalise();
 
-        return true;
+        return serialize(
+            [
+                'job_id'            => $this->getId(),
+                'output'            => $this->output,
+                'start'             => $start,
+                'end'               => $end_date,
+                'duration'          => $duration,
+                'exception_message' => $exception_message,
+                'exception_code'    => $exception_code,
+                'state'             => true
+            ]);
     }
 
     /**

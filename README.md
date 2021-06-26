@@ -1,3 +1,15 @@
+Modifications in this Package
+==
+Add packages:
+```
+phpseclib/phpseclib
+spatie/fork
+```
+- add a new ssh command to execute remote ssh commands
+- run jobs in parallel with the help of `spatie/fork`
+- some features of the original package are no longer working
+- job output (and other infos) are returned as serialized string  
+
 PHP Cron Scheduler
 ==
 

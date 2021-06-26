@@ -1,6 +1,6 @@
 {
-    "name": "peppeocchi/php-cron-scheduler",
-    "description": "PHP Cron Job Scheduler",
+    "name": "macropage/php-cron-scheduler",
+    "description": "PHP Cron Job Scheduler - a fork of peppeocchi/php-cron-scheduler",
     "license": "MIT",
     "keywords": ["cron job", "scheduler"],
     "authors": [
@@ -13,12 +13,21 @@
             "email": "carsten@carstenwindler.de",
             "homepage": "http://carstenwindler.de",
             "role": "Contributor"
+        },
+        {
+            "name": "Michael Bladowski",
+            "email": "info@macropage.de",
+            "homepage": "https://twitter.com/michabbb",
+            "role": "Contributor"
         }
     ],
     "minimum-stability": "dev",
     "require": {
         "php": "^7.3 || ^8.0",
-        "dragonmantank/cron-expression": "^3.0"
+        "dragonmantank/cron-expression": "^3.0",
+        "phpseclib/phpseclib": "^3.0",
+        "spatie/fork": "^1.1",
+        "nesbot/carbon": "^2.0"
     },
     "require-dev": {
         "phpunit/phpunit": "~9.5",

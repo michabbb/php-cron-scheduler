@@ -3,6 +3,7 @@
 use DateTime;
 use Exception;
 use InvalidArgumentException;
+use Spatie\Fork\Fork;
 
 class Scheduler
 {
@@ -158,6 +159,46 @@ class Scheduler
     }
 
     /**
+     * Queue a raw shell command.
+     *
+     * @param  string  $command  The command to execute
+     * @param  array  $args      Optional arguments to pass to the command
+     * @param  string  $id       Optional custom identifier
+     * @return Job
+     */
+    public function ssh(
+        string $command,
+        array $args,
+        string $ssh_host,
+        string $id = null,
+        int $ssh_port = 22,
+        string $ssh_user = 'root',
+        string $ssh_pwd = '',
+        string $ssh_key = '',
+        string $ssh_key_pwd = ''
+    )
+    {
+        $job = new Job($command, $args, $id);
+        $job->setRunVia('ssh');
+        $job->setSSHhost($ssh_host);
+        $job->setSSHport($ssh_port);
+        $job->setSSHuser($ssh_user);
+        if ($ssh_pwd) {
+            $job->setSSHpwd($ssh_pwd);
+        }
+        if ($ssh_key) {
+            $job->setSSHkey($ssh_key);
+        }
+        if ($ssh_key_pwd) {
+            $job->setSSHkeyPwd($ssh_key_pwd);
+        }
+
+        $this->queueJob($job->configure($this->config));
+
+        return $job;
+    }
+
+    /**
      * Run the scheduler.
      *
      * @param  DateTime  $runTime  Optional, run at specific moment
@@ -171,16 +212,29 @@ class Scheduler
             $runTime = new DateTime('now');
         }
 
+        $jobsToRun = [];
+        $jobsPushed = [];
+
         foreach ($jobs as $job) {
             if ($job->isDue($runTime)) {
-                try {
+                $jobsToRun[]  = fn() => $job->run();
+                $jobsPushed[] = $job;
+                /*try {
                     $job->run();
                     $this->pushExecutedJob($job);
                 } catch (\Exception $e) {
                     $this->pushFailedJob($job, $e);
-                }
+                }*/
             }
         }
+
+        $results = Fork::new()
+            ->run(...$jobsToRun);
+        foreach ($jobsPushed as $job) {
+            $this->pushExecutedJob($job);
+        }
+
+        return $results;
 
         return $this->getExecutedJobs();
     }
